@@ -86,25 +86,39 @@
             color: white;
         }
 
-        #customModal {
+        .modal-overlay {
             display: none;
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.85);
             z-index: 9999;
             align-items: center;
             justify-content: center;
+            backdrop-filter: blur(4px);
         }
     </style>
 </head>
 <body class="p-4 md:p-8 pb-20">
-    <div id="customModal">
+    <!-- 입력 초기화 모달 -->
+    <div id="resetModal" class="modal-overlay">
         <div class="glass-card p-6 rounded-lg border-2 border-red-900 max-w-sm w-full text-center">
             <h3 class="text-xl font-bold mb-4">입력 초기화</h3>
             <p class="text-gray-400 mb-6 text-sm">계산기의 모든 입력값을 초기값으로 되돌리시겠습니까?<br>(기록부는 유지됩니다)</p>
             <div class="flex gap-4 justify-center">
-                <button onclick="closeModal()" class="px-4 py-2 bg-gray-800 rounded text-sm">취소</button>
-                <button onclick="confirmReset()" class="px-4 py-2 bg-red-700 rounded text-sm font-bold">확인</button>
+                <button onclick="closeModal('resetModal')" class="px-4 py-2 bg-gray-800 rounded text-sm hover:bg-gray-700">취소</button>
+                <button onclick="confirmReset()" class="px-4 py-2 bg-red-700 rounded text-sm font-bold hover:bg-red-600">확인</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 전체 삭제 모달 -->
+    <div id="clearModal" class="modal-overlay">
+        <div class="glass-card p-6 rounded-lg border-2 border-red-900 max-w-sm w-full text-center">
+            <h3 class="text-xl font-bold mb-4 text-red-500">전체 삭제 경고</h3>
+            <p class="text-gray-400 mb-6 text-sm">기록부에 저장된 모든 시뮬레이션 결과가 사라집니다.<br>정말로 삭제하시겠습니까?</p>
+            <div class="flex gap-4 justify-center">
+                <button onclick="closeModal('clearModal')" class="px-4 py-2 bg-gray-800 rounded text-sm hover:bg-gray-700">취소</button>
+                <button onclick="confirmClearHistory()" class="px-4 py-2 bg-red-700 rounded text-sm font-bold hover:bg-red-600">전체 삭제</button>
             </div>
         </div>
     </div>
@@ -115,92 +129,51 @@
                 <h1 class="text-4xl font-black limbus-red tracking-widest uppercase mb-1">Limbus Analyst</h1>
                 <p class="text-gray-500 text-xs font-bold uppercase tracking-tighter">Ultimate Damage Simulator</p>
             </div>
-            <button onclick="openResetModal()" class="reset-btn active:scale-95">입력 초기화</button>
+            <button onclick="openModal('resetModal')" class="reset-btn active:scale-95">입력 초기화</button>
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12">
+            <!-- 왼쪽 컬럼 -->
             <div class="lg:col-span-4 space-y-6">
                 <section class="glass-card p-6 rounded-lg accent-border shadow-lg">
                     <h2 class="text-lg font-bold mb-4 border-b border-gray-800 pb-2">공격자 정보</h2>
                     <div class="grid grid-cols-2 gap-4">
-                        <div class="col-span-1">
-                            <label class="text-gray-500">정신력</label>
-                            <input type="number" id="mental" value="45" min="-45" max="45" class="input-field calc-trigger">
-                        </div>
-                        <div class="col-span-1">
-                            <label class="text-gray-500">공격레벨(공격-방어)</label>
-                            <input type="number" id="levelDiff" value="0" class="input-field calc-trigger">
-                        </div>
-                        <div class="col-span-1">
-                            <label class="text-gray-500">기본 위력</label>
-                            <input type="number" id="basePower" value="5" class="input-field calc-trigger">
-                        </div>
-                        <div class="col-span-1">
-                            <label class="text-gray-500">코인 위력</label>
-                            <input type="number" id="coinPower" value="3" class="input-field calc-trigger">
-                        </div>
-                        <div class="col-span-1">
-                            <label class="text-gray-500">코인 개수</label>
-                            <input type="number" id="coinCount" value="3" min="1" max="5" class="input-field calc-trigger">
-                        </div>
-                        <div class="col-span-1">
-                            <label class="text-red-500">피해량 증가 (%)</label>
-                            <input type="number" id="globalDmgBuff" value="0" class="input-field calc-trigger">
-                        </div>
+                        <div><label class="text-gray-500">기초 정신력</label><input type="number" id="mental" value="45" min="-45" max="45" class="input-field calc-trigger"></div>
+                        <div><label class="text-gray-500">공격레벨(공-방)</label><input type="number" id="levelDiff" value="0" class="input-field calc-trigger"></div>
+                        <div><label class="text-gray-500">기본 위력</label><input type="number" id="basePower" value="5" class="input-field calc-trigger"></div>
+                        <div><label class="text-gray-500">코인 위력</label><input type="number" id="coinPower" value="3" class="input-field calc-trigger"></div>
+                        <div><label class="text-gray-500">코인 개수</label><input type="number" id="coinCount" value="3" min="1" max="5" class="input-field calc-trigger"></div>
+                        <div><label class="text-red-500">피해량 증가 (%)</label><input type="number" id="globalDmgBuff" value="0" class="input-field calc-trigger"></div>
                     </div>
                 </section>
-
                 <section class="glass-card p-6 rounded-lg border-l-4 border-yellow-500 shadow-lg">
                     <h2 class="text-lg font-bold mb-4 border-b border-gray-800 pb-2">전투 시작 시 호흡</h2>
                     <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="text-yellow-500">초기 호흡 위력</label>
-                            <input type="number" id="startPoisePot" value="0" min="0" class="input-field calc-trigger">
-                        </div>
-                        <div>
-                            <label class="text-yellow-500">초기 호흡 횟수</label>
-                            <input type="number" id="startPoiseCnt" value="0" min="0" class="input-field calc-trigger">
-                        </div>
+                        <div><label class="text-yellow-500">초기 호흡 위력</label><input type="number" id="startPoisePot" value="0" min="0" class="input-field calc-trigger"></div>
+                        <div><label class="text-yellow-500">초기 호흡 횟수</label><input type="number" id="startPoiseCnt" value="0" min="0" class="input-field calc-trigger"></div>
                     </div>
                 </section>
-
                 <section class="glass-card p-6 rounded-lg border-l-4 border-blue-500 shadow-lg">
                     <h2 class="text-lg font-bold mb-4 border-b border-gray-800 pb-2">방어자 내성</h2>
                     <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="text-blue-400">물리 내성</label>
-                            <input type="number" id="mainPhysRes" value="1.0" step="0.1" class="input-field calc-trigger">
-                        </div>
-                        <div>
-                            <label class="text-blue-400">죄악 내성</label>
-                            <input type="number" id="mainSinRes" value="1.0" step="0.1" class="input-field calc-trigger">
-                        </div>
+                        <div><label class="text-blue-400">물리 내성</label><input type="number" id="mainPhysRes" value="1.0" step="0.1" class="input-field calc-trigger"></div>
+                        <div><label class="text-blue-400">죄악 내성</label><input type="number" id="mainSinRes" value="1.0" step="0.1" class="input-field calc-trigger"></div>
                     </div>
                 </section>
             </div>
 
+            <!-- 오른쪽 컬럼 -->
             <div class="lg:col-span-8 space-y-6">
                 <section class="glass-card p-6 rounded-lg shadow-lg">
                     <h2 class="text-lg font-bold mb-6 border-l-4 border-green-600 pl-3">코인별 상세 설정</h2>
                     <div id="coinContainer" class="space-y-4"></div>
                 </section>
-
                 <section class="glass-card p-8 rounded-lg border-t-4 border-red-700 shadow-xl">
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center mb-8">
-                        <div class="text-center">
-                            <p class="text-[10px] text-gray-500 font-bold uppercase mb-1">Min.</p>
-                            <div id="resMin" class="text-2xl font-mono">0.00</div>
-                        </div>
-                        <div class="text-center bg-red-900/10 py-6 rounded-2xl border border-red-900/40">
-                            <p class="text-[11px] text-red-400 font-bold uppercase mb-1 tracking-widest">Ave.</p>
-                            <div id="resAvg" class="text-5xl font-black limbus-red">0.00</div>
-                        </div>
-                        <div class="text-center">
-                            <p class="text-[10px] text-gray-500 font-bold uppercase mb-1">Max.</p>
-                            <div id="resMax" class="text-2xl font-mono text-yellow-500">0.00</div>
-                        </div>
+                        <div class="text-center"><p class="text-[10px] text-gray-500 font-bold uppercase mb-1">Min.</p><div id="resMin" class="text-2xl font-mono">0.00</div></div>
+                        <div class="text-center bg-red-900/10 py-6 rounded-2xl border border-red-900/40"><p class="text-[11px] text-red-400 font-bold uppercase mb-1 tracking-widest">Ave.</p><div id="resAvg" class="text-5xl font-black limbus-red">0.00</div></div>
+                        <div class="text-center"><p class="text-[10px] text-gray-500 font-bold uppercase mb-1">Max.</p><div id="resMax" class="text-2xl font-mono text-yellow-500">0.00</div></div>
                     </div>
-                    
                     <div class="bg-black/40 p-4 rounded-xl border border-gray-800">
                         <div class="flex flex-col md:flex-row gap-3">
                             <input type="text" id="saveTitle" placeholder="제목 입력 (예: 검계 뫼르소 3스)" class="input-field flex-grow">
@@ -211,6 +184,7 @@
             </div>
         </div>
 
+        <!-- 데이터 기록부 -->
         <section class="glass-card p-6 rounded-xl border-t-2 border-gray-700 shadow-2xl">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                 <h2 class="text-xl font-black flex items-center gap-2">
@@ -224,7 +198,8 @@
                         <button id="sortAsc" onclick="setSort('asc')" class="sort-btn whitespace-nowrap">피해량 낮음</button>
                     </div>
                     <button onclick="exportToExcel()" class="export-btn shadow-md active:scale-95">엑셀 내보내기</button>
-                    <button onclick="clearHistory()" class="text-[10px] bg-gray-800 hover:bg-red-900 px-3 py-1.5 rounded text-gray-400 transition-colors uppercase font-bold">전체 삭제</button>
+                    <!-- 전체 삭제 버튼에 모달 연결 -->
+                    <button onclick="openModal('clearModal')" class="text-[10px] bg-gray-800 hover:bg-red-900 px-3 py-1.5 rounded text-gray-400 transition-colors uppercase font-bold">전체 삭제</button>
                 </div>
             </div>
             <div id="historyList" class="space-y-3 max-h-[500px] overflow-y-auto pr-2">
@@ -237,9 +212,11 @@
         let historyData = [];
         let currentSort = 'latest';
 
-        function openResetModal() { document.getElementById('customModal').style.display = 'flex'; }
-        function closeModal() { document.getElementById('customModal').style.display = 'none'; }
+        // 모달 관리
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
+        // 초기화 확인
         function confirmReset() {
             document.getElementById('mental').value = 45;
             document.getElementById('levelDiff').value = 0;
@@ -254,7 +231,14 @@
             document.getElementById('saveTitle').value = '';
             createCoinInputs();
             calculate();
-            closeModal();
+            closeModal('resetModal');
+        }
+
+        // 전체 삭제 확인
+        function confirmClearHistory() {
+            historyData = [];
+            renderHistory();
+            closeModal('clearModal');
         }
 
         function createCoinInputs() {
@@ -272,6 +256,11 @@
                         <div><label class="text-gray-500">피해량 증가%</label><input type="number" id="dmgBuff_${i}" value="0" class="input-field calc-trigger"></div>
                         <div><label class="text-gray-500">치명타 시 피해량 증가%</label><input type="number" id="critBuff_${i}" value="0" class="input-field calc-trigger"></div>
                         <div><label class="text-gray-500">코인 위력+</label><input type="number" id="coinPowerPlus_${i}" value="0" class="input-field calc-trigger"></div>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div><label class="text-blue-400">최종 위력+</label><input type="number" id="finalPowerPlus_${i}" value="0" class="input-field calc-trigger"></div>
+                            <div><label class="text-green-500">공격 레벨 +/-</label><input type="number" id="atkLvlPlus_${i}" value="0" class="input-field calc-trigger"></div>
+                            <div><label class="text-red-400">정신력 +/-</label><input type="number" id="mentalPlus_${i}" value="0" class="input-field calc-trigger"></div>
+                        </div>
                     </div>
                     <div class="space-y-4">
                         <div class="sub-box poise-accent">
@@ -300,9 +289,8 @@
         function calculate() {
             const getVal = (id) => parseFloat(document.getElementById(id)?.value) || 0;
             const count = parseInt(getVal('coinCount'));
-            const mental = getVal('mental');
-            const headProb = Math.max(0, Math.min(1, (50 + mental) / 100));
-            const levelMod = getVal('levelDiff') / (25 + Math.abs(getVal('levelDiff')));
+            const initialMental = getVal('mental');
+            const baseLevelDiff = getVal('levelDiff');
             const mainRes = getResMod(getVal('mainPhysRes')) + getResMod(getVal('mainSinRes'));
             const gBuff = getVal('globalDmgBuff') / 100;
             const baseP = getVal('basePower');
@@ -312,6 +300,9 @@
             for(let i=1; i<=count; i++) {
                 coinData.push({
                     coinPowerPlus: getVal(`coinPowerPlus_${i}`),
+                    finalPowerPlus: getVal(`finalPowerPlus_${i}`),
+                    atkLvlPlus: getVal(`atkLvlPlus_${i}`),
+                    mentalPlus: getVal(`mentalPlus_${i}`),
                     dmgBuff: getVal(`dmgBuff_${i}`) / 100,
                     critBuff: getVal(`critBuff_${i}`) / 100,
                     extraPct: getVal(`extraPct_${i}`) / 100,
@@ -323,66 +314,50 @@
 
             const calcFinal = (pwr, c, isCrit) => {
                 const totalAmp = 1 + gBuff + c.dmgBuff + (isCrit ? c.critBuff : 0);
+                const currentLevelDiff = baseLevelDiff + c.atkLvlPlus;
+                const levelMod = currentLevelDiff / (25 + Math.abs(currentLevelDiff));
                 const totalRes = 1 + mainRes + levelMod + (isCrit ? 0.2 : 0);
                 const main = pwr * totalAmp * totalRes;
                 const extra = main * c.extraPct * (1 + c.exRes);
                 return Math.max(0, main + extra);
             };
 
-            //--- 평균값(Ave) 계산 (동적 확률 시뮬레이션) ---
+            // 평균값 계산 (정신력 누적 시뮬레이션)
             let curPot = getVal('startPoisePot');
             let curCnt = getVal('startPoiseCnt');
+            let curMental = initialMental;
             let totalAve = 0;
             for(let i=0; i<count; i++) {
                 const c = coinData[i];
-                const pwrExp = baseP + ((globalCoinP + c.coinPowerPlus) * (i+1) * headProb);
+                const headProb = Math.max(0, Math.min(1, (50 + curMental) / 100));
+                const pwrExp = baseP + ((globalCoinP + c.coinPowerPlus) * (i+1) * headProb) + c.finalPowerPlus;
                 const cProb = curCnt > 0 ? Math.min(1, (curPot * 5) / 100) : 0;
                 totalAve += (calcFinal(pwrExp, c, false) * (1 - cProb)) + (calcFinal(pwrExp, c, true) * cProb);
                 if (curCnt > 0) curCnt--;
                 curPot += c.gainPot; curCnt += c.gainCnt;
+                curMental = Math.max(-45, Math.min(45, curMental + c.mentalPlus));
             }
 
-            //--- 맥댐(Max) 및 민댐(Min) 로직 ---
             const calculateBoundary = (isMaxMode) => {
-                let startPot = getVal('startPoisePot');
-                let startCnt = getVal('startPoiseCnt');
-                
-                // 1. 호흡 자원 총량 파악 (시뮬레이션 중 획득 포함)
-                let totalPossibleCrits = startCnt;
+                let curPot = getVal('startPoisePot');
+                let curCnt = getVal('startPoiseCnt');
+                let totalPossibleCrits = curCnt;
                 coinData.forEach(c => totalPossibleCrits += c.gainCnt);
-                let canCritAtAll = (startPot > 0 || coinData.some(c => c.gainPot > 0));
-                
-                // 크리티컬 100% 여부 (20 위력 이상)
-                let isAlwaysCrit = startPot >= 20;
-
+                let canCritAtAll = (curPot > 0 || coinData.some(c => c.gainPot > 0));
+                let isAlwaysCrit = curPot >= 20;
                 let critAssignment = new Array(count).fill(false);
-                
-                if (isMaxMode) {
-                    // 맥댐은 모든 코인 앞면 가정
-                    if (canCritAtAll) {
-                        let actualCrits = Math.min(count, totalPossibleCrits);
-                        if (isAlwaysCrit) {
-                            // 크리 100%면 앞쪽 코인부터 배정
-                            for(let i=0; i<actualCrits; i++) critAssignment[i] = true;
-                        } else {
-                            // 크리 100% 미만이면 뒤쪽 코인부터 배정 (가장 큰 데미지에 크리 적용)
-                            for(let i=0; i<actualCrits; i++) critAssignment[count - 1 - i] = true;
-                        }
-                    }
-                } else {
-                    // 민댐은 모든 코인 뒷면 가정
-                    if (isAlwaysCrit) {
-                        // 크리 100%면 민댐에도 크리 적용 (앞쪽부터)
-                        let actualCrits = Math.min(count, totalPossibleCrits);
-                        for(let i=0; i<actualCrits; i++) critAssignment[i] = true;
-                    }
+                if (isMaxMode && canCritAtAll) {
+                    let actualCrits = Math.min(count, totalPossibleCrits);
+                    if (isAlwaysCrit) for(let i=0; i<actualCrits; i++) critAssignment[i] = true;
+                    else for(let i=0; i<actualCrits; i++) critAssignment[count - 1 - i] = true;
+                } else if (!isMaxMode && isAlwaysCrit) {
+                    let actualCrits = Math.min(count, totalPossibleCrits);
+                    for(let i=0; i<actualCrits; i++) critAssignment[i] = true;
                 }
-
                 let sum = 0;
                 for(let i=0; i<count; i++) {
                     const c = coinData[i];
-                    // 맥댐은 앞면(Pwr 증가), 민댐은 뒷면(Base 유지)
-                    const pwr = isMaxMode ? (baseP + ((globalCoinP + c.coinPowerPlus) * (i+1))) : baseP;
+                    const pwr = (isMaxMode ? (baseP + ((globalCoinP + c.coinPowerPlus) * (i+1))) : baseP) + c.finalPowerPlus;
                     sum += calcFinal(pwr, c, critAssignment[i]);
                 }
                 return sum;
@@ -421,7 +396,7 @@
             else if(currentSort === 'asc') sortedData.sort((a, b) => a.avg - b.avg);
             
             if (sortedData.length === 0) {
-                list.innerHTML = `<div class="text-center py-10 text-gray-600 text-sm italic">기록이 없습니다.</div>`;
+                list.innerHTML = `<div class="text-center py-10 text-gray-600 text-sm italic">아직 저장된 기록이 없습니다.</div>`;
                 return;
             }
             list.innerHTML = sortedData.map(h => `
@@ -439,7 +414,7 @@
         }
 
         function deleteRecord(id) { historyData = historyData.filter(h => h.id !== id); renderHistory(); }
-        function clearHistory() { if(confirm("전체 삭제하시겠습니까?")) { historyData = []; renderHistory(); } }
+        
         function exportToExcel() {
             if (historyData.length === 0) return alert("내보낼 기록이 없습니다.");
             let csvContent = "\uFEFF제목,평균,최소,최대,기록시간\n";
