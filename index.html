@@ -158,6 +158,10 @@
             <div id="historyList" class="space-y-3 max-h-[500px] overflow-y-auto pr-2"></div>
         </section>
     </div>
+<div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 z-[9999] bg-yellow-500 text-black font-bold px-6 py-3 rounded-full shadow-2xl opacity-0 transition-all duration-300 pointer-events-none">
+    이월 완료!
+</div>
+
 
     <script>
         let historyData = [];
@@ -178,17 +182,24 @@
         // 이월하기 버튼 기능
         // 이월하기 버튼 기능 수정
         function carryOver() {
-            // Math.round를 제거하여 소수점 데이터를 그대로 입력창에 반영합니다.
-            // toFixed(2) 등을 사용해 입력창 보기에는 깔끔하게, 값은 실수로 전달합니다.
-            document.getElementById('startPoisePot').value = lastSimulationResult.pot.toFixed(2);
-            document.getElementById('startPoiseCnt').value = lastSimulationResult.cnt.toFixed(2);
-            
-            // 정신력은 게임 시스템상 정수이므로 round를 유지하거나, 
-            // 시뮬레이션 정밀도를 위해 소수점을 남기고 싶다면 동일하게 toFixed를 씁니다.
-            document.getElementById('mental').value = lastSimulationResult.mental.toFixed(2);
-            
-            // 이월 후 바뀐 수치로 즉시 재계산
-    calculate(); 
+    // 1. 값 복사하기
+    const nextCnt = Math.max(0, lastSimulationResult.cnt - 1);
+document.getElementById('startPoisePot').value = lastSimulationResult.pot.toFixed(2);
+    document.getElementById('startPoiseCnt').value = nextCnt.toFixed(2);
+    document.getElementById('mental').value = lastSimulationResult.mental.toFixed(2);
+    
+    // 2. 알림 띄우기 (애니메이션 효과)
+    const toast = document.getElementById('toast');
+    toast.style.opacity = '1';
+    toast.style.bottom = '40px'; // 살짝 위로 슥 올라오는 느낌
+
+    // 3. 1.2초 뒤에 다시 사라지게 하기
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.bottom = '20px'; // 다시 원래 위치로
+    }, 1200);
+
+    // calculate(); // 이 줄이 없어야 자동 계산이 안 됩니다!
 }
 
         function createCoinInputs() {
@@ -245,7 +256,7 @@
     const baseP = getVal('basePower');
     const globalCoinP = getVal('coinPower');
 
-    const ITERATIONS = 100000;
+    const ITERATIONS = 300000;
     let totalDmgSum = 0;
     let minDmg = Infinity;
     let maxDmg = -Infinity;
@@ -253,6 +264,7 @@
     let totalFinalPot = 0;
     let totalFinalCnt = 0;
     let totalFinalMental = 0;
+    let totalCritCount = 0; 
 
     for (let s = 0; s < ITERATIONS; s++) {
         let simDmg = 0;
@@ -296,6 +308,7 @@
             simDmg += Math.max(0, mainDmg + extraDmg);
 
             if (isCrit) {
+totalCritCount++; 
                 curCnt -= 1;
                 if (curCnt <= 0) curPot = 0;
             }
@@ -327,11 +340,13 @@
     lastSimulationResult = { 
         pot: totalFinalPot / ITERATIONS, 
         cnt: totalFinalCnt / ITERATIONS, 
-        mental: totalFinalMental / ITERATIONS 
+        mental: totalFinalMental / ITERATIONS,
+crit: totalCritCount / ITERATIONS
     };
     
-    document.getElementById('finalPoise').innerText = `${lastSimulationResult.pot.toFixed(1)} / ${lastSimulationResult.cnt.toFixed(1)}`;
+    document.getElementById('finalPoise').innerText = `${lastSimulationResult.pot.toFixed(2)} / ${lastSimulationResult.cnt.toFixed(2)}`;
     document.getElementById('finalMental').innerText = Math.round(lastSimulationResult.mental);
+document.getElementById('critCount').innerText = lastSimulationResult.crit.toFixed(1);
 }
 
         // --- 기타 기능 (원본 유지) ---
@@ -387,4 +402,3 @@
     </script>
 </body>
 </html>
-
