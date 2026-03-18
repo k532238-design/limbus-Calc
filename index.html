@@ -3,147 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>림버스 컴퍼니 딜 시뮬레이터</title>
+    <title>림버스 컴퍼니 딜 시뮬레이터 (Monte Carlo + 이월)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700&display=swap');
-        body {
-            font-family: 'Noto Sans KR', sans-serif;
-            background-color: #0d0d0d;
-            color: #d1d1d1;
-        }
-        .glass-card {
-            background: rgba(22, 22, 22, 0.98);
-            border: 1px solid #333;
-        }
+        body { font-family: 'Noto Sans KR', sans-serif; background-color: #0d0d0d; color: #d1d1d1; }
+        .glass-card { background: rgba(22, 22, 22, 0.98); border: 1px solid #333; }
         .limbus-red { color: #cf2027; }
-        .input-field {
-            background-color: #1a1a1a !important;
-            color: #fff !important;
-            border: 1px solid #444 !important;
-            padding: 0.5rem;
-            border-radius: 4px;
-            width: 100%;
-            font-size: 0.85rem;
-        }
-        .input-field:focus {
-            border-color: #cf2027 !important;
-            outline: none;
-        }
-        .coin-box {
-            background: rgba(255,255,255,0.02);
-            border: 1px solid #2a2a2a;
-        }
+        .input-field { background-color: #1a1a1a !important; color: #fff !important; border: 1px solid #444 !important; padding: 0.5rem; border-radius: 4px; width: 100%; font-size: 0.85rem; }
+        .input-field:focus { border-color: #cf2027 !important; outline: none; }
+        .coin-box { background: rgba(255,255,255,0.02); border: 1px solid #2a2a2a; }
         .accent-border { border-left: 4px solid #cf2027; }
         .sub-box { border-left: 2px solid #444; padding-left: 10px; margin-top: 8px; }
         .poise-accent { border-color: #eab308; }
         .extra-accent { border-color: #3b82f6; }
         label { font-size: 10px; font-weight: 700; margin-bottom: 2px; display: block; }
-        
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #0d0d0d; }
-        ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #cf2027; }
-
-        .sort-btn {
-            background: #1a1a1a;
-            border: 1px solid #444;
-            color: #888;
-            padding: 4px 10px;
-            font-size: 10px;
-            border-radius: 4px;
-            font-weight: bold;
-            transition: all 0.2s;
-        }
-        .sort-btn.active {
-            border-color: #cf2027;
-            color: #cf2027;
-            background: rgba(207, 32, 39, 0.1);
-        }
-        .export-btn {
-            background: #065f46;
-            color: #fff;
-            padding: 4px 10px;
-            font-size: 10px;
-            border-radius: 4px;
-            font-weight: bold;
-            transition: all 0.2s;
-        }
-        .export-btn:hover { background: #047857; }
-        
-        .reset-btn {
-            border: 1px solid #cf2027;
-            color: #cf2027;
-            padding: 4px 12px;
-            font-size: 12px;
-            border-radius: 4px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .reset-btn:hover {
-            background: #cf2027;
-            color: white;
-        }
-
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.85);
-            z-index: 9999;
-            align-items: center;
-            justify-content: center;
-            backdrop-filter: blur(4px);
-        }
+        .reset-btn { border: 1px solid #cf2027; color: #cf2027; padding: 4px 12px; font-size: 12px; border-radius: 4px; font-weight: bold; cursor: pointer; transition: all 0.2s; }
+        .reset-btn:hover { background: #cf2027; color: white; }
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+        .sort-btn { background: #1a1a1a; border: 1px solid #444; color: #888; padding: 4px 10px; font-size: 10px; border-radius: 4px; font-weight: bold; transition: all 0.2s; }
+        .sort-btn.active { border-color: #cf2027; color: #cf2027; background: rgba(207, 32, 39, 0.1); }
+        .export-btn { background: #065f46; color: #fff; padding: 4px 10px; font-size: 10px; border-radius: 4px; font-weight: bold; }
+        .carry-over-btn { background: #eab308; color: #000; font-size: 10px; font-weight: 900; padding: 4px 8px; border-radius: 4px; transition: all 0.2s; }
+        .carry-over-btn:hover { background: #facc15; transform: translateY(-1px); }
     </style>
 </head>
 <body class="p-4 md:p-8 pb-20">
-    <!-- 입력 초기화 모달 -->
     <div id="resetModal" class="modal-overlay">
         <div class="glass-card p-6 rounded-lg border-2 border-red-900 max-w-sm w-full text-center">
             <h3 class="text-xl font-bold mb-4">입력 초기화</h3>
-            <p class="text-gray-400 mb-6 text-sm">계산기의 모든 입력값을 초기값으로 되돌리시겠습니까?<br>(기록부는 유지됩니다)</p>
+            <p class="text-gray-400 mb-6 text-sm">초기화하시겠습니까?</p>
             <div class="flex gap-4 justify-center">
-                <button onclick="closeModal('resetModal')" class="px-4 py-2 bg-gray-800 rounded text-sm hover:bg-gray-700">취소</button>
-                <button onclick="confirmReset()" class="px-4 py-2 bg-red-700 rounded text-sm font-bold hover:bg-red-600">확인</button>
+                <button onclick="closeModal('resetModal')" class="px-4 py-2 bg-gray-800 rounded text-sm">취소</button>
+                <button onclick="confirmReset()" class="px-4 py-2 bg-red-700 rounded text-sm font-bold">확인</button>
             </div>
         </div>
     </div>
-
-    <!-- 전체 삭제 모달 -->
+    
     <div id="clearModal" class="modal-overlay">
         <div class="glass-card p-6 rounded-lg border-2 border-red-900 max-w-sm w-full text-center">
-            <h3 class="text-xl font-bold mb-4 text-red-500">전체 삭제 경고</h3>
-            <p class="text-gray-400 mb-6 text-sm">기록부에 저장된 모든 시뮬레이션 결과가 사라집니다.<br>정말로 삭제하시겠습니까?</p>
+            <h3 class="text-xl font-bold mb-4 text-red-500">전체 삭제</h3>
+            <p class="text-gray-400 mb-6 text-sm">기록을 모두 삭제할까요?</p>
             <div class="flex gap-4 justify-center">
-                <button onclick="closeModal('clearModal')" class="px-4 py-2 bg-gray-800 rounded text-sm hover:bg-gray-700">취소</button>
-                <button onclick="confirmClearHistory()" class="px-4 py-2 bg-red-700 rounded text-sm font-bold hover:bg-red-600">전체 삭제</button>
+                <button onclick="closeModal('clearModal')" class="px-4 py-2 bg-gray-800 rounded text-sm">취소</button>
+                <button onclick="confirmClearHistory()" class="px-4 py-2 bg-red-700 rounded text-sm font-bold">확인</button>
             </div>
         </div>
     </div>
 
     <div class="max-w-7xl mx-auto">
         <header class="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
-            <div class="text-center md:text-left">
+            <div>
                 <h1 class="text-4xl font-black limbus-red tracking-widest uppercase mb-1">Limbus Analyst</h1>
-                <p class="text-gray-500 text-xs font-bold uppercase tracking-tighter">Ultimate Damage Simulator</p>
+                <p class="text-gray-500 text-xs font-bold uppercase tracking-tighter">Monte Carlo Engine v2.1</p>
             </div>
-            <button onclick="openModal('resetModal')" class="reset-btn active:scale-95">입력 초기화</button>
+            <button onclick="openModal('resetModal')" class="reset-btn">입력 초기화</button>
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12">
-            <!-- 왼쪽 컬럼 -->
             <div class="lg:col-span-4 space-y-6">
-                <section class="glass-card p-6 rounded-lg accent-border shadow-lg">
+               <section class="glass-card p-6 rounded-lg accent-border shadow-lg">
                     <h2 class="text-lg font-bold mb-4 border-b border-gray-800 pb-2">공격자 정보</h2>
                     <div class="grid grid-cols-2 gap-4">
-                        <div><label class="text-gray-500">기초 정신력</label><input type="number" id="mental" value="45" min="-45" max="45" class="input-field calc-trigger"></div>
+                        <div><label class="text-gray-500">기초 정신력</label><input type="number" id="mental" value="45" class="input-field calc-trigger"></div>
                         <div><label class="text-gray-500">공격레벨(공-방)</label><input type="number" id="levelDiff" value="0" class="input-field calc-trigger"></div>
                         <div><label class="text-gray-500">기본 위력</label><input type="number" id="basePower" value="5" class="input-field calc-trigger"></div>
                         <div><label class="text-gray-500">코인 위력</label><input type="number" id="coinPower" value="3" class="input-field calc-trigger"></div>
                         <div><label class="text-gray-500">코인 개수</label><input type="number" id="coinCount" value="3" min="1" max="5" class="input-field calc-trigger"></div>
                         <div><label class="text-red-500">피해량 증가 (%)</label><input type="number" id="globalDmgBuff" value="0" class="input-field calc-trigger"></div>
+                        <div class="col-span-2"><label class="text-yellow-500">전역 치명타 피해량 증가 (%)</label><input type="number" id="globalCritDmgBuff" value="0" class="input-field calc-trigger"></div>
                     </div>
                 </section>
                 <section class="glass-card p-6 rounded-lg border-l-4 border-yellow-500 shadow-lg">
@@ -162,84 +90,106 @@
                 </section>
             </div>
 
-            <!-- 오른쪽 컬럼 -->
             <div class="lg:col-span-8 space-y-6">
                 <section class="glass-card p-6 rounded-lg shadow-lg">
                     <h2 class="text-lg font-bold mb-6 border-l-4 border-green-600 pl-3">코인별 상세 설정</h2>
                     <div id="coinContainer" class="space-y-4"></div>
                 </section>
+
                 <section class="glass-card p-8 rounded-lg border-t-4 border-red-700 shadow-xl">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center mb-8">
-                        <div class="text-center"><p class="text-[10px] text-gray-500 font-bold uppercase mb-1">Min.</p><div id="resMin" class="text-2xl font-mono">0.00</div></div>
-                        <div class="text-center bg-red-900/10 py-6 rounded-2xl border border-red-900/40"><p class="text-[11px] text-red-400 font-bold uppercase mb-1 tracking-widest">Ave.</p><div id="resAvg" class="text-5xl font-black limbus-red">0.00</div></div>
-                        <div class="text-center"><p class="text-[10px] text-gray-500 font-bold uppercase mb-1">Max.</p><div id="resMax" class="text-2xl font-mono text-yellow-500">0.00</div></div>
+                    <div class="flex justify-center mb-6">
+    <button onclick="calculate()" class="w-full py-4 bg-red-700 hover:bg-red-600 text-white font-black text-xl rounded-xl shadow-[0_0_20px_rgba(207,32,39,0.3)] transition-all active:scale-95 border border-red-500">
+        시뮬레이션 실행 (100,000회)
+    </button>
+</div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center mb-6">
+                        <div class="text-center"><p class="text-[10px] text-gray-500 font-bold uppercase mb-1">Simulated Min.</p><div id="resMin" class="text-2xl font-mono text-gray-400">0.00</div></div>
+                        <div class="text-center bg-red-900/10 py-6 rounded-2xl border border-red-900/40">
+                            <p class="text-[11px] text-red-400 font-bold uppercase mb-1 tracking-widest">Expected Ave.</p>
+                            <div id="resAvg" class="text-5xl font-black limbus-red">0.00</div>
+                        </div>
+                        <div class="text-center"><p class="text-[10px] text-gray-500 font-bold uppercase mb-1">Simulated Max.</p><div id="resMax" class="text-2xl font-mono text-yellow-500">0.00</div></div>
                     </div>
+
+                    <div class="bg-black/60 p-4 rounded-xl border border-gray-800 mb-6">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-[11px] font-bold text-gray-400 tracking-tighter uppercase">Simulation Final State (Last Run)</span>
+                            <button onclick="carryOver()" class="carry-over-btn active:scale-95 shadow-lg">결과값 이월하기 (초기값으로 복사)</button>
+                        </div>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="text-center">
+                                <p class="text-[9px] text-gray-500 font-bold uppercase mb-1">Final Poise</p>
+                                <div id="finalPoise" class="text-lg font-mono text-yellow-500 font-bold">0 / 0</div>
+                            </div>
+                            <div class="text-center border-x border-gray-800">
+                                <p class="text-[9px] text-gray-500 font-bold uppercase mb-1">Final Mental</p>
+                                <div id="finalMental" class="text-lg font-mono text-blue-400 font-bold">0</div>
+                            </div>
+                            <div class="text-center">
+                                <p class="text-[9px] text-gray-500 font-bold uppercase mb-1">Crit Count</p>
+                                <div id="critCount" class="text-lg font-mono text-red-500 font-bold">0</div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="bg-black/40 p-4 rounded-xl border border-gray-800">
                         <div class="flex flex-col md:flex-row gap-3">
-                            <input type="text" id="saveTitle" placeholder="제목 입력 (예: 검계 뫼르소 3스)" class="input-field flex-grow">
-                            <button onclick="saveRecord()" class="bg-red-700 hover:bg-red-600 text-white font-bold py-2 px-8 rounded transition-all text-sm whitespace-nowrap shadow-lg active:scale-95">결과 기록 저장</button>
+                            <input type="text" id="saveTitle" placeholder="제목 입력" class="input-field flex-grow">
+                            <button onclick="saveRecord()" class="bg-red-700 hover:bg-red-600 text-white font-bold py-2 px-8 rounded text-sm shadow-lg active:scale-95">결과 기록 저장</button>
                         </div>
                     </div>
                 </section>
             </div>
         </div>
 
-        <!-- 데이터 기록부 -->
         <section class="glass-card p-6 rounded-xl border-t-2 border-gray-700 shadow-2xl">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-                <h2 class="text-xl font-black flex items-center gap-2">
-                    <span class="w-2 h-6 bg-red-700 block"></span>
-                    데이터 기록부
-                </h2>
+                <h2 class="text-xl font-black flex items-center gap-2"><span class="w-2 h-6 bg-red-700 block"></span>데이터 기록부</h2>
                 <div class="flex flex-wrap items-center gap-3">
                     <div class="flex bg-black p-1 rounded-lg border border-gray-800 overflow-x-auto">
-                        <button id="sortLatest" onclick="setSort('latest')" class="sort-btn active whitespace-nowrap">최신순</button>
-                        <button id="sortDesc" onclick="setSort('desc')" class="sort-btn whitespace-nowrap">피해량 높음</button>
-                        <button id="sortAsc" onclick="setSort('asc')" class="sort-btn whitespace-nowrap">피해량 낮음</button>
+                        <button id="sortLatest" onclick="setSort('latest')" class="sort-btn active">최신순</button>
+                        <button id="sortDesc" onclick="setSort('desc')" class="sort-btn">피해량↑</button>
+                        <button id="sortAsc" onclick="setSort('asc')" class="sort-btn">피해량↓</button>
                     </div>
-                    <button onclick="exportToExcel()" class="export-btn shadow-md active:scale-95">엑셀 내보내기</button>
-                    <!-- 전체 삭제 버튼에 모달 연결 -->
-                    <button onclick="openModal('clearModal')" class="text-[10px] bg-gray-800 hover:bg-red-900 px-3 py-1.5 rounded text-gray-400 transition-colors uppercase font-bold">전체 삭제</button>
+                    <button onclick="exportToExcel()" class="export-btn shadow-md">엑셀</button>
+                    <button onclick="openModal('clearModal')" class="text-[10px] bg-gray-800 hover:bg-red-900 px-3 py-1.5 rounded text-gray-400 uppercase font-bold">전체 삭제</button>
                 </div>
             </div>
-            <div id="historyList" class="space-y-3 max-h-[500px] overflow-y-auto pr-2">
-                <div class="text-center py-10 text-gray-600 text-sm italic">아직 저장된 기록이 없습니다.</div>
-            </div>
+            <div id="historyList" class="space-y-3 max-h-[500px] overflow-y-auto pr-2"></div>
         </section>
     </div>
 
     <script>
         let historyData = [];
         let currentSort = 'latest';
+        let lastSimulationResult = { pot: 0, cnt: 0, mental: 0 }; // 이월용 데이터 저장소
 
-        // 모달 관리
+        window.onload = () => {
+            createCoinInputs();
+            document.getElementById('coinCount').addEventListener('change', createCoinInputs);
+            // calculate();
+        };
+
         function openModal(id) { document.getElementById(id).style.display = 'flex'; }
         function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        function confirmReset() { location.reload(); }
+        function confirmClearHistory() { historyData = []; renderHistory(); closeModal('clearModal'); }
 
-        // 초기화 확인
-        function confirmReset() {
-            document.getElementById('mental').value = 45;
-            document.getElementById('levelDiff').value = 0;
-            document.getElementById('basePower').value = 5;
-            document.getElementById('coinPower').value = 3;
-            document.getElementById('coinCount').value = 3;
-            document.getElementById('globalDmgBuff').value = 0;
-            document.getElementById('startPoisePot').value = 0;
-            document.getElementById('startPoiseCnt').value = 0;
-            document.getElementById('mainPhysRes').value = 1.0;
-            document.getElementById('mainSinRes').value = 1.0;
-            document.getElementById('saveTitle').value = '';
-            createCoinInputs();
-            calculate();
-            closeModal('resetModal');
-        }
-
-        // 전체 삭제 확인
-        function confirmClearHistory() {
-            historyData = [];
-            renderHistory();
-            closeModal('clearModal');
-        }
+        // 이월하기 버튼 기능
+        // 이월하기 버튼 기능 수정
+        function carryOver() {
+            // Math.round를 제거하여 소수점 데이터를 그대로 입력창에 반영합니다.
+            // toFixed(2) 등을 사용해 입력창 보기에는 깔끔하게, 값은 실수로 전달합니다.
+            document.getElementById('startPoisePot').value = lastSimulationResult.pot.toFixed(2);
+            document.getElementById('startPoiseCnt').value = lastSimulationResult.cnt.toFixed(2);
+            
+            // 정신력은 게임 시스템상 정수이므로 round를 유지하거나, 
+            // 시뮬레이션 정밀도를 위해 소수점을 남기고 싶다면 동일하게 toFixed를 씁니다.
+            document.getElementById('mental').value = lastSimulationResult.mental.toFixed(2);
+            
+            // 이월 후 바뀐 수치로 즉시 재계산
+    calculate(); 
+}
 
         function createCoinInputs() {
             const count = parseInt(document.getElementById('coinCount').value) || 1;
@@ -250,9 +200,7 @@
                 div.className = 'coin-box p-5 rounded-lg grid grid-cols-1 md:grid-cols-2 gap-6 shadow-sm';
                 div.innerHTML = `
                     <div class="space-y-3">
-                        <div class="flex items-center gap-2 mb-1">
-                            <span class="bg-gray-800 text-[10px] px-2 py-0.5 rounded text-gray-400 font-mono">COIN ${i}</span>
-                        </div>
+                        <span class="bg-gray-800 text-[10px] px-2 py-0.5 rounded text-gray-400 font-mono">COIN ${i}</span>
                         <div><label class="text-gray-500">피해량 증가%</label><input type="number" id="dmgBuff_${i}" value="0" class="input-field calc-trigger"></div>
                         <div><label class="text-gray-500">치명타 시 피해량 증가%</label><input type="number" id="critBuff_${i}" value="0" class="input-field calc-trigger"></div>
                         <div><label class="text-gray-500">코인 위력+</label><input type="number" id="coinPowerPlus_${i}" value="0" class="input-field calc-trigger"></div>
@@ -281,93 +229,112 @@
                     </div>`;
                 container.appendChild(div);
             }
-            document.querySelectorAll('.calc-trigger').forEach(el => el.addEventListener('input', calculate));
+            // document.querySelectorAll('.calc-trigger').forEach(el => el.addEventListener('input', calculate));
         }
 
         const getResMod = (v) => v >= 1.0 ? (v - 1.0) : (v - 1.0) / 2;
 
+
         function calculate() {
-            const getVal = (id) => parseFloat(document.getElementById(id)?.value) || 0;
-            const count = parseInt(getVal('coinCount'));
-            const initialMental = getVal('mental');
-            const baseLevelDiff = getVal('levelDiff');
-            const mainRes = getResMod(getVal('mainPhysRes')) + getResMod(getVal('mainSinRes'));
-            const gBuff = getVal('globalDmgBuff') / 100;
-            const baseP = getVal('basePower');
-            const globalCoinP = getVal('coinPower');
+    const getVal = (id) => parseFloat(document.getElementById(id)?.value) || 0;
+    const count = parseInt(getVal('coinCount'));
+    const initialMental = getVal('mental');
+    const baseLevelDiff = getVal('levelDiff');
+    const gBuff = getVal('globalDmgBuff') / 100;
+    const gCritBuff = getVal('globalCritDmgBuff') / 100; // 전역 치명타 피증 가져오기
+    const baseP = getVal('basePower');
+    const globalCoinP = getVal('coinPower');
 
-            const coinData = [];
-            for(let i=1; i<=count; i++) {
-                coinData.push({
-                    coinPowerPlus: getVal(`coinPowerPlus_${i}`),
-                    finalPowerPlus: getVal(`finalPowerPlus_${i}`),
-                    atkLvlPlus: getVal(`atkLvlPlus_${i}`),
-                    mentalPlus: getVal(`mentalPlus_${i}`),
-                    dmgBuff: getVal(`dmgBuff_${i}`) / 100,
-                    critBuff: getVal(`critBuff_${i}`) / 100,
-                    extraPct: getVal(`extraPct_${i}`) / 100,
-                    exRes: getResMod(getVal(`exPhys_${i}`)) + getResMod(getVal(`exSin_${i}`)),
-                    gainPot: getVal(`gainPot_${i}`),
-                    gainCnt: getVal(`gainCnt_${i}`)
-                });
+    const ITERATIONS = 100000;
+    let totalDmgSum = 0;
+    let minDmg = Infinity;
+    let maxDmg = -Infinity;
+    
+    let totalFinalPot = 0;
+    let totalFinalCnt = 0;
+    let totalFinalMental = 0;
+
+    for (let s = 0; s < ITERATIONS; s++) {
+        let simDmg = 0;
+        let curMental = initialMental;
+        let curPot = getVal('startPoisePot');
+        let curCnt = getVal('startPoiseCnt');
+        let curPwr = baseP;
+
+        for (let i = 1; i <= count; i++) {
+            const headProb = Math.max(0, Math.min(1, (50 + curMental) / 100));
+            const isHead = Math.random() < headProb;
+
+            const coinPwrPlus = getVal(`coinPowerPlus_${i}`);
+            const finalPwrPlus = getVal(`finalPowerPlus_${i}`);
+            curPwr = curPwr + (isHead ? (globalCoinP + coinPwrPlus) : 0) + finalPwrPlus;
+
+            const critProb = curCnt > 0 ? Math.min(1, (curPot * 5) / 100) : 0;
+            const isCrit = Math.random() < critProb;
+
+            // 피해량 증가분 계산 로직 수정
+            const dmgBuff = getVal(`dmgBuff_${i}`) / 100;
+            const coinCritBuff = getVal(`critBuff_${i}`) / 100;
+            
+            // 치명타 시: 기본 피증 + 코인 피증 + (전역 치타 피증 + 코인 치타 피증)
+            // 비치명타 시: 기본 피증 + 코인 피증
+            const totalAmp = 1 + gBuff + dmgBuff + (isCrit ? (gCritBuff + coinCritBuff) : 0);
+
+            const physRes = getResMod(getVal('mainPhysRes'));
+            const sinRes = getResMod(getVal('mainSinRes'));
+            const atkLvlPlus = getVal(`atkLvlPlus_${i}`);
+            const currentLevelDiff = baseLevelDiff + atkLvlPlus;
+            const levelMod = currentLevelDiff / (25 + Math.abs(currentLevelDiff));
+            
+            const totalRes = 1 + (physRes + sinRes) + (isCrit ? 0.2 : 0) + levelMod;
+
+            const mainDmg = curPwr * totalAmp * totalRes;
+            const extraPct = getVal(`extraPct_${i}`) / 100;
+            const exRes = getResMod(getVal(`exPhys_${i}`)) + getResMod(getVal(`exSin_${i}`));
+            const extraDmg = mainDmg * extraPct * (1 + exRes);
+
+            simDmg += Math.max(0, mainDmg + extraDmg);
+
+            if (isCrit) {
+                curCnt -= 1;
+                if (curCnt <= 0) curPot = 0;
             }
 
-            const calcFinal = (pwr, c, isCrit) => {
-                const totalAmp = 1 + gBuff + c.dmgBuff + (isCrit ? c.critBuff : 0);
-                const currentLevelDiff = baseLevelDiff + c.atkLvlPlus;
-                const levelMod = currentLevelDiff / (25 + Math.abs(currentLevelDiff));
-                const totalRes = 1 + mainRes + levelMod + (isCrit ? 0.2 : 0);
-                const main = pwr * totalAmp * totalRes;
-                const extra = main * c.extraPct * (1 + c.exRes);
-                return Math.max(0, main + extra);
-            };
+            let gainPot = getVal(`gainPot_${i}`);
+            let gainCnt = getVal(`gainCnt_${i}`);
+            if (gainPot > 0 && (curCnt + gainCnt) === 0) gainCnt = 1;
+            if (gainCnt > 0 && (curPot + gainPot) === 0) gainPot = 1;
 
-            // 평균값 계산 (정신력 누적 시뮬레이션)
-            let curPot = getVal('startPoisePot');
-            let curCnt = getVal('startPoiseCnt');
-            let curMental = initialMental;
-            let totalAve = 0;
-            for(let i=0; i<count; i++) {
-                const c = coinData[i];
-                const headProb = Math.max(0, Math.min(1, (50 + curMental) / 100));
-                const pwrExp = baseP + ((globalCoinP + c.coinPowerPlus) * (i+1) * headProb) + c.finalPowerPlus;
-                const cProb = curCnt > 0 ? Math.min(1, (curPot * 5) / 100) : 0;
-                totalAve += (calcFinal(pwrExp, c, false) * (1 - cProb)) + (calcFinal(pwrExp, c, true) * cProb);
-                if (curCnt > 0) curCnt--;
-                curPot += c.gainPot; curCnt += c.gainCnt;
-                curMental = Math.max(-45, Math.min(45, curMental + c.mentalPlus));
-            }
-
-            const calculateBoundary = (isMaxMode) => {
-                let curPot = getVal('startPoisePot');
-                let curCnt = getVal('startPoiseCnt');
-                let totalPossibleCrits = curCnt;
-                coinData.forEach(c => totalPossibleCrits += c.gainCnt);
-                let canCritAtAll = (curPot > 0 || coinData.some(c => c.gainPot > 0));
-                let isAlwaysCrit = curPot >= 20;
-                let critAssignment = new Array(count).fill(false);
-                if (isMaxMode && canCritAtAll) {
-                    let actualCrits = Math.min(count, totalPossibleCrits);
-                    if (isAlwaysCrit) for(let i=0; i<actualCrits; i++) critAssignment[i] = true;
-                    else for(let i=0; i<actualCrits; i++) critAssignment[count - 1 - i] = true;
-                } else if (!isMaxMode && isAlwaysCrit) {
-                    let actualCrits = Math.min(count, totalPossibleCrits);
-                    for(let i=0; i<actualCrits; i++) critAssignment[i] = true;
-                }
-                let sum = 0;
-                for(let i=0; i<count; i++) {
-                    const c = coinData[i];
-                    const pwr = (isMaxMode ? (baseP + ((globalCoinP + c.coinPowerPlus) * (i+1))) : baseP) + c.finalPowerPlus;
-                    sum += calcFinal(pwr, c, critAssignment[i]);
-                }
-                return sum;
-            };
-
-            document.getElementById('resAvg').innerText = totalAve.toFixed(2);
-            document.getElementById('resMax').innerText = calculateBoundary(true).toFixed(2);
-            document.getElementById('resMin').innerText = calculateBoundary(false).toFixed(2);
+            curPot += gainPot;
+            curCnt += gainCnt;
+            curMental = Math.max(-45, Math.min(45, curMental + getVal(`mentalPlus_${i}`)));
         }
 
+        totalDmgSum += simDmg;
+        if (simDmg < minDmg) minDmg = simDmg;
+        if (simDmg > maxDmg) maxDmg = simDmg;
+
+        totalFinalPot += curPot;
+        totalFinalCnt += curCnt;
+        totalFinalMental += curMental;
+    }
+
+    // 결과 UI 업데이트
+    document.getElementById('resAvg').innerText = (totalDmgSum / ITERATIONS).toFixed(2);
+    document.getElementById('resMax').innerText = maxDmg.toFixed(2);
+    document.getElementById('resMin').innerText = minDmg.toFixed(2);
+    
+    lastSimulationResult = { 
+        pot: totalFinalPot / ITERATIONS, 
+        cnt: totalFinalCnt / ITERATIONS, 
+        mental: totalFinalMental / ITERATIONS 
+    };
+    
+    document.getElementById('finalPoise').innerText = `${lastSimulationResult.pot.toFixed(1)} / ${lastSimulationResult.cnt.toFixed(1)}`;
+    document.getElementById('finalMental').innerText = Math.round(lastSimulationResult.mental);
+}
+
+        // --- 기타 기능 (원본 유지) ---
         function saveRecord() {
             const titleInput = document.getElementById('saveTitle');
             const title = titleInput.value.trim() || `무제 #${historyData.length + 1}`;
@@ -380,25 +347,19 @@
             });
             titleInput.value = ''; renderHistory();
         }
-
         function setSort(type) {
             currentSort = type;
             document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById(`sort${type.charAt(0).toUpperCase() + type.slice(1)}`).classList.add('active');
             renderHistory();
         }
-
         function renderHistory() {
             const list = document.getElementById('historyList');
             let sortedData = [...historyData];
             if(currentSort === 'latest') sortedData.reverse();
             else if(currentSort === 'desc') sortedData.sort((a, b) => b.avg - a.avg);
             else if(currentSort === 'asc') sortedData.sort((a, b) => a.avg - b.avg);
-            
-            if (sortedData.length === 0) {
-                list.innerHTML = `<div class="text-center py-10 text-gray-600 text-sm italic">아직 저장된 기록이 없습니다.</div>`;
-                return;
-            }
+            if (sortedData.length === 0) { list.innerHTML = `<div class="text-center py-10 text-gray-600 text-sm italic">기록이 없습니다.</div>`; return; }
             list.innerHTML = sortedData.map(h => `
                 <div class="glass-card p-4 rounded-lg flex flex-col md:flex-row justify-between items-center gap-3 border-l-4 border-red-900 shadow-md">
                     <div class="flex-grow w-full md:w-auto"><div class="flex items-center gap-2"><span class="text-xs font-black text-gray-200">${h.title}</span><span class="text-[9px] text-gray-600">${h.date}</span></div></div>
@@ -408,29 +369,22 @@
                             <div class="flex flex-col"><span class="text-[9px] text-red-500 font-bold uppercase">Ave</span> <span class="limbus-red font-black">${h.avg.toFixed(2)}</span></div>
                             <div class="flex flex-col"><span class="text-[9px] text-yellow-600 font-bold uppercase">Max</span> <span class="text-yellow-500">${h.max.toFixed(2)}</span></div>
                         </div>
-                        <button onclick="deleteRecord(${h.id})" class="text-gray-700 hover:text-red-500"><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                        <button onclick="deleteRecord(${h.id})" class="text-gray-700 hover:text-red-500">삭제</button>
                     </div>
                 </div>`).join('');
         }
-
         function deleteRecord(id) { historyData = historyData.filter(h => h.id !== id); renderHistory(); }
-        
         function exportToExcel() {
-            if (historyData.length === 0) return alert("내보낼 기록이 없습니다.");
-            let csvContent = "\uFEFF제목,평균,최소,최대,기록시간\n";
-            historyData.forEach(h => { csvContent += `${h.title.replace(/,/g, '')},${h.avg},${h.min},${h.max},${h.date}\n`; });
+            if (historyData.length === 0) return alert("기록이 없습니다.");
+            let csvContent = "\uFEFF제목,평균,최소,최대,날짜\n";
+            historyData.forEach(h => { csvContent += `${h.title},${h.avg},${h.min},${h.max},${h.date}\n`; });
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
-            link.download = `Limbus_History_${new Date().toISOString().slice(0,10)}.csv`;
+            link.download = `Limbus_Sim_${new Date().toISOString().slice(0,10)}.csv`;
             link.click();
         }
-
-        window.onload = () => {
-            createCoinInputs();
-            document.getElementById('coinCount').addEventListener('change', createCoinInputs);
-            calculate();
-        };
     </script>
 </body>
 </html>
+
