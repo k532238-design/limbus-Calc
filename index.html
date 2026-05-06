@@ -190,112 +190,116 @@
         const getResMod = (v) => v >= 1.0 ? (v - 1.0) : (v - 1.0) / 2;
 
         function calculate() {
-let curMental = Math.max(-45, Math.min(45, parseFloat(document.getElementById('mental').value)));
-let UI_Pot = parseFloat(document.getElementById('startPoisePot').value) || 0;
-let UI_Cnt = parseFloat(document.getElementById('startPoiseCnt').value) || 0;
-if (UI_Pot > 0 && UI_Cnt <= 0) UI_Cnt = 1; // 위력만 있을 때 횟수 부여
-if (UI_Cnt > 0 && UI_Pot <= 0) UI_Pot = 1; // 횟수만 있을 때 위력 부여
-document.getElementById('startPoisePot').value = UI_Pot;
-document.getElementById('startPoiseCnt').value = UI_Cnt;
-            const getVal = (id) => parseFloat(document.getElementById(id)?.value) || 0;
-            const count = parseInt(getVal('coinCount'));
-            const initialMental = getVal('mental');
-            const baseLevelDiff = getVal('levelDiff');
-            const gBuff = getVal('globalDmgBuff') / 100;
-            const gCritBuff = getVal('globalCritDmgBuff') / 100; 
-            const baseP = getVal('basePower');
-            const globalCoinP = getVal('coinPower');
+    // 1. 입력된 정신력을 즉시 45 상한으로 제한
+    let rawMental = parseFloat(document.getElementById('mental').value) || 0;
+    let initialMental = Math.max(-45, Math.min(45, rawMental));
+    
+    let UI_Pot = parseFloat(document.getElementById('startPoisePot').value) || 0;
+    let UI_Cnt = parseFloat(document.getElementById('startPoiseCnt').value) || 0;
+    if (UI_Pot > 0 && UI_Cnt <= 0) UI_Cnt = 1;
+    if (UI_Cnt > 0 && UI_Pot <= 0) UI_Pot = 1;
+    document.getElementById('startPoisePot').value = UI_Pot;
+    document.getElementById('startPoiseCnt').value = UI_Cnt;
 
-            const ITERATIONS = 300000;
-            let totalDmgSum = 0;
-            let minDmg = Infinity;
-            let maxDmg = -Infinity;
-            let totalFinalPot = 0;
-            let totalFinalCnt = 0;
-            let totalFinalMental = 0;
-            let totalCritCount = 0; 
+    const getVal = (id) => parseFloat(document.getElementById(id)?.value) || 0;
+    const count = parseInt(getVal('coinCount'));
+    const baseLevelDiff = getVal('levelDiff');
+    const gBuff = getVal('globalDmgBuff') / 100;
+    const gCritBuff = getVal('globalCritDmgBuff') / 100; 
+    const baseP = getVal('basePower');
+    const globalCoinP = getVal('coinPower');
 
-            for (let s = 0; s < ITERATIONS; s++) {
-                let simDmg = 0;
-                let curMental = initialMental;
-                let curPot = getVal('startPoisePot');
-                let curCnt = getVal('startPoiseCnt');
+    const ITERATIONS = 300000;
+    let totalDmgSum = 0;
+    let minDmg = Infinity;
+    let maxDmg = -Infinity;
+    let totalFinalPot = 0;
+    let totalFinalCnt = 0;
+    let totalFinalMental = 0;
+    let totalCritCount = 0; 
+
+    for (let s = 0; s < ITERATIONS; s++) {
+        let simDmg = 0;
+        let curMental = initialMental; // 45로 캡핑된 값으로 시작
+        let curPot = UI_Pot;
+        let curCnt = UI_Cnt;
+        if (curCnt <= 0) { curPot = 0; curCnt = 0; }
+        
+        let curPwr = baseP;
+
+        for (let i = 1; i <= count; i++) {
+            // 확률 계산 (항상 0.05 ~ 0.95 사이로 보장됨)
+            const headProb = (50 + curMental) / 100;
+            const isHead = Math.random() < headProb;
+            const coinPwrPlus = getVal(`coinPowerPlus_${i}`);
+            const finalPwrPlus = getVal(`finalPowerPlus_${i}`);
+            
+            curPwr = curPwr + (isHead ? (globalCoinP + coinPwrPlus) : 0) + finalPwrPlus;
+
+            const critProb = curCnt > 0 ? Math.min(1, (curPot * 5) / 100) : 0;
+            const isCrit = Math.random() < critProb;
+            const dmgBuff = getVal(`dmgBuff_${i}`) / 100;
+            const coinCritBuff = getVal(`critBuff_${i}`) / 100;
+            const totalAmp = 1 + gBuff + dmgBuff + (isCrit ? (gCritBuff + coinCritBuff) : 0);
+
+            const physRes = getResMod(getVal('mainPhysRes'));
+            const sinRes = getResMod(getVal('mainSinRes'));
+            const atkLvlPlus = getVal(`atkLvlPlus_${i}`);
+            const currentLevelDiff = baseLevelDiff + atkLvlPlus;
+            const levelMod = currentLevelDiff / (25 + Math.abs(currentLevelDiff));
+            const totalRes = 1 + (physRes + sinRes) + (isCrit ? 0.2 : 0) + levelMod;
+
+            const mainDmg = curPwr * totalAmp * totalRes;
+            const extraPct = (getVal(`extraPct_${i}`) || 0) / 100;
+            const exRes = getResMod(getVal(`exPhys_${i}`) || 1.0) + getResMod(getVal(`exSin_${i}`) || 1.0);
+            const extraDmg = mainDmg * extraPct * (1 + exRes);
+
+            simDmg += Math.max(0, mainDmg + extraDmg);
+
+            if (isCrit) {
+                totalCritCount++; 
+                curCnt -= 1;
                 if (curCnt <= 0) { curPot = 0; curCnt = 0; }
-                
-                let curPwr = baseP;
-
-                for (let i = 1; i <= count; i++) {
-                    const headProb = Math.max(0, Math.min(1, (50 + curMental) / 100));
-                    const isHead = Math.random() < headProb;
-                    const coinPwrPlus = getVal(`coinPowerPlus_${i}`);
-                    const finalPwrPlus = getVal(`finalPowerPlus_${i}`);
-                    
-                    curPwr = curPwr + (isHead ? (globalCoinP + coinPwrPlus) : 0) + finalPwrPlus;
-
-                    const critProb = curCnt > 0 ? Math.min(1, (curPot * 5) / 100) : 0;
-                    const isCrit = Math.random() < critProb;
-                    const dmgBuff = getVal(`dmgBuff_${i}`) / 100;
-                    const coinCritBuff = getVal(`critBuff_${i}`) / 100;
-                    const totalAmp = 1 + gBuff + dmgBuff + (isCrit ? (gCritBuff + coinCritBuff) : 0);
-
-                    const physRes = getResMod(getVal('mainPhysRes'));
-                    const sinRes = getResMod(getVal('mainSinRes'));
-                    const atkLvlPlus = getVal(`atkLvlPlus_${i}`);
-                    const currentLevelDiff = baseLevelDiff + atkLvlPlus;
-                    const levelMod = currentLevelDiff / (25 + Math.abs(currentLevelDiff));
-                    const totalRes = 1 + (physRes + sinRes) + (isCrit ? 0.2 : 0) + levelMod;
-
-                    const mainDmg = curPwr * totalAmp * totalRes;
-                    const extraPct = (getVal(`extraPct_${i}`) || 0) / 100;
-                    const exRes = getResMod(getVal(`exPhys_${i}`) || 1.0) + getResMod(getVal(`exSin_${i}`) || 1.0);
-                    const extraDmg = mainDmg * extraPct * (1 + exRes);
-
-                    simDmg += Math.max(0, mainDmg + extraDmg);
-
-                    if (isCrit) {
-                        totalCritCount++; 
-                        curCnt -= 1;
-                        if (curCnt <= 0) { curPot = 0; curCnt = 0; }
-                    }
-
-                    let gainPot = getVal(`gainPot_${i}`);
-                    let gainCnt = getVal(`gainCnt_${i}`);
-                    if (gainPot > 0 && (curCnt + gainCnt) === 0) gainCnt = 1;
-                    if (gainCnt > 0 && (curPot + gainPot) === 0) gainPot = 1;
-
-                    curPot += gainPot;
-                    curCnt += gainCnt;
-                    curMental = Math.max(-45, Math.min(45, curMental + getVal(`mentalPlus_${i}`)));
-                }
-
-                totalDmgSum += simDmg;
-                minDmg = Math.min(minDmg, simDmg);
-                maxDmg = Math.max(maxDmg, simDmg);
-                totalFinalPot += curPot;
-                totalFinalCnt += curCnt;
-                totalFinalMental += curMental;
             }
 
-            const avgResult = totalDmgSum / ITERATIONS;
-            document.getElementById('resAvg').innerText = avgResult.toFixed(2);
-            document.getElementById('resMax').innerText = maxDmg.toFixed(2);
-            document.getElementById('resMin').innerText = minDmg.toFixed(2);
+            let gainPot = getVal(`gainPot_${i}`);
+            let gainCnt = getVal(`gainCnt_${i}`);
+            curPot += gainPot;
+            curCnt += gainCnt;
             
-            lastSimulationResult = { 
-                pot: totalFinalPot / ITERATIONS, 
-                cnt: totalFinalCnt / ITERATIONS, 
-                mental: totalFinalMental / ITERATIONS,
-                crit: totalCritCount / ITERATIONS,
-                avg: avgResult, max: maxDmg, min: minDmg
-            };
-            
-            document.getElementById('finalPoise').innerText = `${lastSimulationResult.pot.toFixed(2)} / ${lastSimulationResult.cnt.toFixed(2)}`;
-            document.getElementById('finalMental').innerText = Math.round(lastSimulationResult.mental);
-            document.getElementById('critCount').innerText = lastSimulationResult.crit.toFixed(1);
-
-            return lastSimulationResult;
+            // [핵심] 코인 계산 후 정신력 업데이트 시에만 45 제한 적용
+            curMental = Math.max(-45, Math.min(45, curMental + getVal(`mentalPlus_${i}`)));
         }
 
+        totalDmgSum += simDmg;
+        minDmg = Math.min(minDmg, simDmg);
+        maxDmg = Math.max(maxDmg, simDmg);
+        totalFinalPot += curPot;
+        totalFinalCnt += curCnt;
+        totalFinalMental += curMental;
+    }
+
+    // 결과 출력 로직은 기존과 동일
+    const avgResult = totalDmgSum / ITERATIONS;
+    document.getElementById('resAvg').innerText = avgResult.toFixed(2);
+    document.getElementById('resMax').innerText = maxDmg.toFixed(2);
+    document.getElementById('resMin').innerText = minDmg.toFixed(2);
+    
+    lastSimulationResult = { 
+        pot: totalFinalPot / ITERATIONS, 
+        cnt: totalFinalCnt / ITERATIONS, 
+        mental: totalFinalMental / ITERATIONS,
+        crit: totalCritCount / ITERATIONS,
+        avg: avgResult, max: maxDmg, min: minDmg
+    };
+    
+    document.getElementById('finalPoise').innerText = `${lastSimulationResult.pot.toFixed(2)} / ${lastSimulationResult.cnt.toFixed(2)}`;
+    document.getElementById('finalMental').innerText = Math.round(lastSimulationResult.mental);
+    document.getElementById('critCount').innerText = lastSimulationResult.crit.toFixed(1);
+
+    showToast("시뮬레이션 완료!");
+    return lastSimulationResult;
+}
                 // 1. 데이터를 저장하는 함수 (호흡값 추가 저장)
                 function processPaste() {
             const pasteArea = document.getElementById('pasteArea');
