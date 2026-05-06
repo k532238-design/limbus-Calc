@@ -190,6 +190,7 @@
         const getResMod = (v) => v >= 1.0 ? (v - 1.0) : (v - 1.0) / 2;
 
         function calculate() {
+let curMental = Math.max(-45, Math.min(45, parseFloat(document.getElementById('mental').value)));
 let UI_Pot = parseFloat(document.getElementById('startPoisePot').value) || 0;
 let UI_Cnt = parseFloat(document.getElementById('startPoiseCnt').value) || 0;
 if (UI_Pot > 0 && UI_Cnt <= 0) UI_Cnt = 1; // 위력만 있을 때 횟수 부여
